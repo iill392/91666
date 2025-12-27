@@ -1,0 +1,338 @@
+<html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>趣味答题挑战</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        danger: '#EF4444',
+                        dark: '#1F2937',
+                        light: '#F3F4F6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    },
+                    animation: {
+                        'bounce-light': 'bounce 2s infinite',
+                        'pulse-light': 'pulse 3s infinite'
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .glass {
+                background: rgba(255, 255, 255, 0.25);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+            }
+            .option-hover {
+                transition: all 0.3s ease;
+            }
+            .option-hover:hover {
+                transform: translateY(-2px);
+            }
+            .progress-bar {
+                transition: width 0.5s ease-in-out;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <!-- 开始屏幕 -->
+        <div id="start-screen" class="flex flex-col items-center justify-center min-h-[80vh]">
+            <div class="text-center mb-8">
+                <h1 class="text-[clamp(2rem,5vw,3rem)] font-bold text-primary mb-4 text-shadow">溏心视频</h1>
+                <p class="text-gray-600 text-lg mb-6">请开始答题！</p>
+                <div class="flex justify-center space-x-2 mb-8">
+                    <div class="w-3 h-3 bg-primary rounded-full animate-bounce-light"></div>
+                    <div class="w-3 h-3 bg-secondary rounded-full animate-bounce-light" style="animation-delay: 0.2s"></div>
+                    <div class="w-3 h-3 bg-accent rounded-full animate-bounce-light" style="animation-delay: 0.4s"></div>
+                </div>
+                <button id="start-btn" class="bg-primary hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 w-full max-w-xs">
+                    开始答题
+                </button>
+            </div>
+        </div>
+
+        <!-- 答题屏幕 -->
+        <div id="quiz-screen" class="hidden">
+            <!-- 进度条 -->
+            <div class="mb-6">
+                <div class="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>问题 <span id="current-question">1</span>/5</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-primary h-2.5 rounded-full progress-bar" style="width: 20%"></div>
+                </div>
+            </div>
+
+            <!-- 题目区域 -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h2 id="question-text" class="text-xl font-semibold text-gray-800 mb-4">你喜欢什么样的？</h2>
+                <div id="options-container" class="space-y-3">
+                    <!-- 选项将通过JS动态生成 -->
+                </div>
+            </div>
+
+            <!-- 导航按钮 -->
+            <div class="flex justify-between">
+                <button id="prev-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg shadow transition-all duration-300 hidden">
+                    <i class="fa fa-arrow-left mr-2"></i>上一题
+                </button>
+                <button id="next-btn" class="bg-primary hover:bg-indigo-700 text-white font-medium py-2 px-6 rounded-lg shadow transition-all duration-300 hidden">
+                    下一题<i class="fa fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+
+    </div>
+
+    <!-- 提示弹窗 -->
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-dark text-white px-4 py-2 rounded-lg shadow-lg hidden">
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+        // 题库数据
+        const quizData = [
+            {
+                question: "你喜欢什么样的？",
+                options: ["萝莉", "大学生", "御姐", "男高"]
+            },
+            {
+                question: "你喜欢什么姿势？",
+                options: ["躺正", "站立", "1", "2"]
+            },
+            {
+                question: "你喜欢哪种方法？",
+                options: ["撸管", "裹管", "PC", "裹奶"]
+            },
+            {
+                question: "你是同吗？",
+                options: ["男同", "女同", "男女通吃", "不是同"]
+            },
+            {
+                question: "现在我们找到了非常适合你的app【密码78c2】",
+                options: ["下载", "爽", "pc", "导管"]
+            }
+        ];
+
+        // DOM元素
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const reviewScreen = document.getElementById('review-screen');
+        
+        const startBtn = document.getElementById('start-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const retryBtn = document.getElementById('retry-btn');
+        const reviewBtn = document.getElementById('review-btn');
+        const backToResultBtn = document.getElementById('back-to-result');
+        
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const currentQuestionSpan = document.getElementById('current-question');
+        const scoreSpan = document.getElementById('score');
+        const progressBar = document.getElementById('progress-bar');
+        const finalScoreSpan = document.getElementById('final-score');
+        const accuracySpan = document.getElementById('accuracy');
+        const timeSpentSpan = document.getElementById('time-spent');
+        const reviewContainer = document.getElementById('review-container');
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toast-message');
+
+        // 游戏状态
+        let currentQuestion = 0;
+        let userAnswers = [];
+
+        // 显示提示
+        function showToast(message, type = 'info') {
+            toastMessage.textContent = message;
+            toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg transition-all duration-300';
+            
+            // 根据类型设置颜色
+            if (type === 'success') {
+                toast.classList.add('bg-green-600', 'text-white');
+            } else if (type === 'error') {
+                toast.classList.add('bg-red-600', 'text-white');
+            } else {
+                toast.classList.add('bg-gray-800', 'text-white');
+            }
+            
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                    toast.classList.remove('opacity-0');
+                }, 300);
+            }, 2000);
+        }
+
+        // 加载题目
+        function loadQuestion(index) {
+            const question = quizData[index];
+            questionText.textContent = question.question;
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, i) => {
+                const optionDiv = document.createElement('div');
+                const isSelected = userAnswers[index] === i;
+                
+                optionDiv.className = `option-hover p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                    isSelected ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary hover:bg-primary/5'
+                }`;
+                
+                optionDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                            isSelected ? 'border-primary text-primary' : 'border-gray-300'
+                        }">
+                            ${String.fromCharCode(65 + i)}
+                        </div>
+                        <span class="text-gray-700">${option}</span>
+                    </div>
+                `;
+                
+                optionDiv.addEventListener('click', () => selectOption(i));
+                optionsContainer.appendChild(optionDiv);
+            });
+            
+            // 更新UI
+            currentQuestionSpan.textContent = index + 1;
+            progressBar.style.width = `${(index + 1) * 20}%`;
+            
+            // 更新导航按钮
+            prevBtn.classList.toggle('hidden', index === 0);
+            
+            if (userAnswers[index] !== undefined) {
+                nextBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.add('hidden');
+            }
+        }
+
+        // 选择选项
+        function selectOption(optionIndex) {
+            userAnswers[currentQuestion] = optionIndex;
+            
+            // 检查是否是最后一题的"下载"选项
+            if (currentQuestion === quizData.length - 1 && optionIndex === 0) {
+                // 跳转到指定网页
+                console.log('即将跳转到下载页面...');
+                // 直接在当前窗口跳转
+                window.location.href = 'https://wwaob.lanzouw.com/ihtll3em7pvi';
+                return;
+            }
+            
+            loadQuestion(currentQuestion);
+            
+            // 显示下一题按钮
+            nextBtn.classList.remove('hidden');
+        }
+
+        // 开始游戏
+        function startQuiz() {
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            
+            currentQuestion = 0;
+            userAnswers = new Array(quizData.length).fill(undefined);
+            
+            loadQuestion(0);
+        }
+
+        // 下一题
+        function nextQuestion() {
+            if (currentQuestion < quizData.length - 1) {
+                currentQuestion++;
+                loadQuestion(currentQuestion);
+            }
+        }
+
+        // 上一题
+        function prevQuestion() {
+            if (currentQuestion > 0) {
+                currentQuestion--;
+                loadQuestion(currentQuestion);
+            }
+        }
+
+
+
+        // 事件监听
+        startBtn.addEventListener('click', startQuiz);
+        nextBtn.addEventListener('click', nextQuestion);
+        prevBtn.addEventListener('click', prevQuestion);
+
+        // 键盘导航支持
+        document.addEventListener('keydown', (e) => {
+            if (quizScreen.classList.contains('hidden')) return;
+            
+            if (e.key >= '1' && e.key <= '4') {
+                const optionIndex = parseInt(e.key) - 1;
+                if (optionIndex < quizData[currentQuestion].options.length) {
+                    selectOption(optionIndex);
+                }
+            } else if (e.key === 'ArrowRight') {
+                nextQuestion();
+            } else if (e.key === 'ArrowLeft') {
+                prevQuestion();
+            }
+        });
+
+        // 触摸手势支持
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+
+        document.addEventListener('touchend', (e) => {
+            if (quizScreen.classList.contains('hidden')) return;
+            
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            
+            if (touchEndX < touchStartX - swipeThreshold) {
+                // 向左滑动，下一题
+                if (currentQuestion < quizData.length - 1) {
+                    nextQuestion();
+                }
+            } else if (touchEndX > touchStartX + swipeThreshold) {
+                // 向右滑动，上一题
+                if (currentQuestion > 0) {
+                    prevQuestion();
+                }
+            }
+        }
+
+        // 初始化
+        console.log('答题应用已加载');
+        console.log('支持的快捷键：');
+        console.log('- 1-4: 选择选项');
+        console.log('- ← →: 上一题/下一题');
+    </script>
+
+</body></html>
